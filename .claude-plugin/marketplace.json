@@ -9,7 +9,7 @@
       "name": "session-rituals",
       "source": "./",
       "description": "/standup, /lane-reset and /handoff — start, reset and close a Claude Code working session against durable state (journal, memory, ticket system, git).",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "productivity"
     }
   ]

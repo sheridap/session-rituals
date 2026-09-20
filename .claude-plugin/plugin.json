@@ -1,6 +1,6 @@
 {
   "name": "session-rituals",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Three session rituals for Claude Code: /standup (start-of-session bootstrap), /lane-reset (cheap ticket-boundary context reset) and /handoff (end-of-session close). Environment-agnostic; every path, command and ticket system is a parameter.",
   "author": { "name": "Patrick Sheridan" },
   "repository": "https://github.com/sheridap/session-rituals",
