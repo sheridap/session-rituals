@@ -34,17 +34,36 @@ Each skill opens with a **Parameters** block that lists every environment-specif
 ```markdown
 ## Session rituals
 
-- journal_dir: journal/
-- ticket_system: linear        # or: github, none
+- journal_dir: journal/                      # or an absolute path to a journal shared by several repos
+- journal_index: journal/README.md           # one-line-per-day index; omit to skip
+- journal_repos: ../other-repo,../another    # repos that keep their own journal/
+- ticket_system: linear                      # or: github, none
 - ticket_prefix: ACME-
+- lock_status_cmd: scripts/session-lock.sh status
 - lock_check_cmd: scripts/session-lock.sh check
+- lock_claim_cmd: scripts/session-lock.sh claim
 - sync_sweep_cmd: scripts/repo-sync.sh --dry-run
-- deploy_cmd: none
+- sync_apply_cmd: scripts/repo-sync.sh
+- deploy_cmd: none                           # /handoff deploys only when this is set
+- deploy_gap_cmd: none                       # read-only: prints merged-but-undeployed commits
+- prod_paths: src/**,deploy/**
 - memory_dir: default
 ```
 
-Any key you leave out takes the default shown in the skill. See each `skills/<name>/SKILL.md` for the full list and what each key changes.
+Any key you leave out takes the default shown in the skill. Each `skills/<name>/SKILL.md` opens with the subset it uses and what each key changes. The keys mean the same thing in every skill.
 
-## Status
+| key | standup | lane-reset | handoff |
+|---|---|---|---|
+| `journal_dir`, `journal_repos` | reads | — | appends |
+| `journal_index` | — | — | writes one line |
+| `ticket_system`, `ticket_prefix` | reads | comments | reconciles |
+| `lock_check_cmd` | checks | — | checks |
+| `lock_status_cmd`, `lock_claim_cmd` | — | — | decides closer / claims |
+| `sync_sweep_cmd` | runs (read-only) | — | — |
+| `sync_apply_cmd` | proposes only | — | — |
+| `deploy_cmd`, `deploy_gap_cmd`, `prod_paths` | — | — | step 6, only if set |
+| `memory_dir` | reads | — | writes |
 
-`/standup` is generalized. `/lane-reset` and `/handoff` follow.
+## License
+
+MIT.
