@@ -1,24 +1,31 @@
 ---
 name: lane-reset
-description: Cheap ticket-boundary context reset — bank the current ticket to a durable state, emit a small paste-able resume prompt, then /clear and keep working. Not an end-of-day ritual; work continues immediately. Invoke as "lane reset", "reset the lane", "ticket boundary", or when a ticket is done and the next one is unrelated.
+description: Cheap ticket-boundary context reset — bank the current ticket to a durable state, emit a small paste-able resume prompt, then the operator runs /clear and keeps working. Not an end-of-day ritual; work continues immediately. Operator-invoked only.
+disable-model-invocation: true
 ---
 
 # /lane-reset — Ticket-boundary context reset
 
-**This does not stop work.** It resets the *transcript*, not the session. You bank the ticket, `/clear`, paste the resume prompt, and the next ticket starts in the same breath. Zero downtime. That is the whole point — see § Why below.
+**This does not stop work.** It resets the *transcript*, not the session. You bank the ticket, the operator runs `/clear`, pastes the resume prompt, and the next ticket starts in the same breath. Zero downtime. That is the whole point — see § Why below.
 
 `/handoff` is the session-close ritual (four artifacts × every repo touched). `/standup` is its heavy read-side mirror. Both are expensive, and that expense is *why* sessions run all day: the only sanctioned way to stop was costly, so nobody stopped. This is the cheap one. Use it many times a day.
 
 ## Parameters
 
-Override per repo in that repo's `CLAUDE.md` under a `## Session rituals` heading, one `- key: value` line each. Absent keys take the default. This skill uses only these:
+Override in the `CLAUDE.md` at the root of the repo you are working in, under a `## Session rituals` heading, one `- key: value` line each. Absent keys take the default; the `CLAUDE.md` closest to `cwd` wins per key, and at equal depth `CLAUDE.local.md` wins. This skill uses only these:
 
 | key | default | what it changes |
 |---|---|---|
-| `ticket_system` | `none` | `linear` (Linear MCP tools), `github` (`gh issue comment` / `gh issue close`), or `none` (step 2 becomes a line in the commit message instead). |
-| `ticket_prefix` | none | Issue-id prefix (e.g. `ACME-`) used in commit messages and the resume prompt. |
+| `ticket_system` | `none` | `linear` (Linear MCP tools, which must be connected), `github` (`gh issue comment` / `gh issue close`; if `gh` is not installed or `origin` is not on github.com, behave as `none` and say so), or `none` (step 2 becomes a line in the commit message instead). |
+| `ticket_prefix` | none | Issue-id prefix (e.g. `ACME-`) used in commit messages, branch names and the resume prompt. |
+| `commit_branch` | `current` | `current` = commit on whatever branch is checked out. `ticket` = if on the default branch and a ticket id is in play, create `<ticket-id-lowercased>-<slug>` first; with `ticket_system: none` or no id, behaves as `current`. |
+| `push` | `ask` | `ask` = ask once before pushing; `always` = push without asking; `never` = commit only and say the push is owed. |
 
-**Never assumed:** no journal, no cross-repo sweep, no memory audit, no deploy, no ssh. Those belong to `/handoff`.
+**Mutations this skill makes:** a git commit; a git push if `push` permits; one ticket comment or close if `ticket_system` is not `none`. Nothing else — no journal, no memory, no cross-repo sweep, no deploy, no ssh. Those belong to `/handoff`.
+
+## Conventions shared with `/standup` and `/handoff`
+
+- **Resume prompt.** Under ~1,500 tokens. A pointer, not a summary. Contains: the next ticket id + one line on the goal; the repo and branch; any *non-obvious* state the next context cannot re-derive from git + tickets; the concrete first action; and the session date `D` on the first line, always, so the after-midnight rule survives `/clear` (a pasted prompt's `D` beats the injected date). **No line prefixes** — a fenced code block or plain paragraphs, never `>` or pipes, so copy-paste is clean. `/handoff` emits the same shape for the whole day.
 
 ## Why (read this before "optimizing" it away)
 
@@ -45,40 +52,30 @@ Cheap by construction: **one repo, one ticket, no journal, no cross-repo sweep, 
 
 ### 1. Bank the work (durable state)
 
-- `git status --short` in **this repo only**. Review the diff before committing — never commit unreviewed. If your project runs an adversarial pre-commit review on code diffs, it applies here.
+- `git status --short` in **this repo only**. Review the diff before committing — never commit unreviewed. If your project has a pre-commit review step (a reviewer agent, a checklist), run it on code diffs here.
 - **Stage explicit paths only** — never `git add -A` / `.` / `-a`. A shared working tree may hold another session's uncommitted edits; blanket staging sweeps them into your commit.
-- Commit on a ticket branch; push.
+- Commit per `commit_branch`; push per `push`.
 - If the work isn't in a committable state, say so plainly and **do not reset** — an uncommitted lane cannot survive a `/clear`.
 
 ### 2. Land the state in the ticket system (one comment, short)
 
-- `linear` / `github`: one comment on the ticket — what landed, commit SHA, what's next. If the ticket is done, close it with a resolution note. Keep it plain prose; some ticket APIs reject long or richly formatted bodies.
+- `linear` / `github`: one comment on the ticket — what landed, commit SHA, what's next. If the ticket is done, close it with a resolution note. Keep it plain prose; some ticket APIs reject long or richly formatted bodies. Never *create* a ticket here; if a follow-up is needed, put it in the resume prompt for `/handoff` to file.
 - `none`: the commit message carries the same three facts. Nothing else.
 
 Skip the journal. Skip the memory sweep. Those are `/handoff`'s job, once a session.
 
 ### 3. Emit the resume prompt
 
-Target **under ~1,500 tokens.** It is a pointer, not a summary — the durable artifacts (commits, tickets, decision records, code) hold the truth; the prompt just tells the next context where to look and what to do first.
-
-Include, and nothing more:
-- The next ticket ID and one line on the goal.
-- The repo and branch to work in.
-- Any *non-obvious* state the next context cannot re-derive from git + tickets (a gotcha hit, a decision made and why, a dead end already ruled out). If everything is re-derivable, say so and keep the prompt short — a short prompt is a success, not a gap.
-- The concrete first action.
-
-**No line prefixes.** Never prepend `>`, pipes, or decoration to the prompt lines — use a fenced code block or plain paragraphs so copy-paste is clean.
-
-Surface any usage gotcha **in the same message as the prompt**, not after the operator trips on it.
+Per the shared convention above. If everything is re-derivable from git + tickets, say so and keep the prompt short — a short prompt is a success, not a gap. Surface any usage gotcha **in the same message as the prompt**, not after the operator trips on it.
 
 ### 4. Hand off the reset
 
-Close with the two-step, in this order and as the last thing in the message:
+Close with the two-step the **operator** performs, in this order and as the last thing in the message:
 
-1. `/clear`
-2. paste the prompt
+1. the operator runs `/clear`
+2. the operator pastes the prompt
 
-Then the operator is working again immediately. The pasted prompt **is** the next ticket's bootstrap — there is no `/standup` at a ticket boundary; `/standup` is the cold-start tool (new day, multi-hour break), and running it at every seam re-incurs the cost this reset just avoided. Do not editorialize about stopping, resting, or resuming later — nothing is being deferred. The operator decides when to step away; this skill never raises it.
+Only the operator can run `/clear`; never try to emit it as a command. Then they are working again immediately. The pasted prompt **is** the next ticket's bootstrap — there is no `/standup` at a ticket boundary; `/standup` is the cold-start tool (new day, multi-hour break), and running it at every seam re-incurs the cost this reset just avoided. Do not editorialize about stopping, resting, or resuming later — nothing is being deferred. The operator decides when to step away; this skill never raises it.
 
 ## What this skill must never become
 
