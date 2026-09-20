@@ -12,20 +12,20 @@ disable-model-invocation: true
 
 ## Parameters
 
-Override in the `CLAUDE.md` at the root of the repo you are working in, under a `## Session rituals` heading, one `- key: value` line each. Absent keys take the default; the `CLAUDE.md` closest to `cwd` wins per key. This skill uses only these:
+Override in the `CLAUDE.md` at the root of the repo you are working in, under a `## Session rituals` heading, one `- key: value` line each. Absent keys take the default; the `CLAUDE.md` closest to `cwd` wins per key, and at equal depth `CLAUDE.local.md` wins. This skill uses only these:
 
 | key | default | what it changes |
 |---|---|---|
-| `ticket_system` | `none` | `linear` (Linear MCP tools, which must be connected), `github` (`gh issue comment` / `gh issue close`, only when `gh` is installed and `origin` is on github.com), or `none` (step 2 becomes a line in the commit message instead). |
+| `ticket_system` | `none` | `linear` (Linear MCP tools, which must be connected), `github` (`gh issue comment` / `gh issue close`; if `gh` is not installed or `origin` is not on github.com, behave as `none` and say so), or `none` (step 2 becomes a line in the commit message instead). |
 | `ticket_prefix` | none | Issue-id prefix (e.g. `ACME-`) used in commit messages, branch names and the resume prompt. |
-| `commit_branch` | `current` | `current` = commit on whatever branch is checked out. `ticket` = if on the default branch, create `<ticket-id-lowercased>-<slug>` first. |
+| `commit_branch` | `current` | `current` = commit on whatever branch is checked out. `ticket` = if on the default branch and a ticket id is in play, create `<ticket-id-lowercased>-<slug>` first; with `ticket_system: none` or no id, behaves as `current`. |
 | `push` | `ask` | `ask` = ask once before pushing; `always` = push without asking; `never` = commit only and say the push is owed. |
 
 **Mutations this skill makes:** a git commit; a git push if `push` permits; one ticket comment or close if `ticket_system` is not `none`. Nothing else — no journal, no memory, no cross-repo sweep, no deploy, no ssh. Those belong to `/handoff`.
 
 ## Conventions shared with `/standup` and `/handoff`
 
-- **Resume prompt.** Under ~1,500 tokens. A pointer, not a summary. Contains: the next ticket id + one line on the goal; the repo and branch; any *non-obvious* state the next context cannot re-derive from git + tickets; the concrete first action. **No line prefixes** — a fenced code block or plain paragraphs, never `>` or pipes, so copy-paste is clean. `/handoff` emits the same shape for the whole day.
+- **Resume prompt.** Under ~1,500 tokens. A pointer, not a summary. Contains: the next ticket id + one line on the goal; the repo and branch; any *non-obvious* state the next context cannot re-derive from git + tickets; the concrete first action; and, if the harness injects no date, the session date `D` on the first line so it survives `/clear`. **No line prefixes** — a fenced code block or plain paragraphs, never `>` or pipes, so copy-paste is clean. `/handoff` emits the same shape for the whole day.
 
 ## Why (read this before "optimizing" it away)
 

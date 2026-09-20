@@ -29,19 +29,19 @@ Updates arrive with `/plugin marketplace update session-rituals`.
 - `gh` is used only when it is installed and the repo's `origin` is on github.com; otherwise PR checks report "not checked".
 - Linear MCP tools are used only with `ticket_system: linear`.
 - Claude Code auto-memory is used only if a memory index already exists; otherwise the memory steps are skipped and say so.
-- `/lane-reset` and `/handoff` **commit and push** (push defaults to asking once). `/standup` never mutates.
+- `/lane-reset` and `/handoff` **commit and push** (push defaults to asking once). `commit_branch` applies to code commits only; journal and index commits stay on the journal repo's checked-out branch. `/standup` never mutates.
 - `/handoff` and `/lane-reset` are operator-invoked only (`disable-model-invocation`); casual phrases like "end of day" never trigger them.
 
 ## Parameters
 
-Each skill opens with a **Parameters** block listing the keys it uses, with a safe default. You do not edit the plugin. You override values in the `CLAUDE.md` at the root of the repo you are working in, under this heading. If several `CLAUDE.md` files load (user-level, repo root, a nested directory, `CLAUDE.local.md`), the one closest to your working directory wins per key.
+Each skill opens with a **Parameters** block listing the keys it uses, with a safe default. You do not edit the plugin. You override values in the `CLAUDE.md` at the root of the repo you are working in, under this heading. If several `CLAUDE.md` files load (user-level, repo root, a nested directory, `CLAUDE.local.md`), the one closest to your working directory wins per key, and at equal depth `CLAUDE.local.md` wins.
 
 ```markdown
 ## Session rituals
 
 - journal_dir: journal/                      # or an absolute path to a journal shared by several repos
-- journal_index: journal/README.md           # one-line-per-day index; omit to skip
-- journal_repos: ../other-repo,../another    # repos that keep their own journal/
+- journal_index: journal/README.md           # one-line-per-day index; omit to skip; relative to the repo root
+- journal_repos: ../other-repo,../another    # repos that keep their own journal/ (at exactly <repo>/journal/)
 - lane_name: api                             # default: the repo directory's basename
 - ticket_system: linear                      # or: github, none
 - ticket_prefix: ACME-
@@ -77,7 +77,7 @@ Any key you leave out takes the default shown in the skill. The keys mean the sa
 
 ### Lock command contract
 
-If you set the lock keys, your script must follow this shape. `check <repo>` exits 0 when no *other* live session holds the repo and non-zero when one does, printing the holders; it must exclude the calling session. `status` prints one line per live holder, tab-separated: repo path, ISO-8601 claim time, session id, and a trailing tab plus `*` on the calling session's own rows. `claim <repo>` and `release <repo>` do what they say. How your script identifies a session (pid, tty, an env var) is up to you; the skills only read the exit code and the `*` mark.
+If you set the lock keys, your script must follow this shape. `check <repo>` exits 0 when no *other* live session holds the repo and non-zero when one does, printing the holders; it must exclude the calling session. `status` prints one line per live holder, tab-separated: repo path, ISO-8601 claim time, session id, and a trailing tab plus `*` on the calling session's own rows. `claim <repo>` adds the calling session as a holder (a second claim makes a co-holder). `release <repo>` removes only the calling session's claim, never another session's. Claiming a session's own lock at start is your tooling's job; the skills only claim and release for a cross-lane append. How your script identifies a session (pid, tty, an env var) is up to you; the skills only read the exit code and the `*` mark.
 
 ### Journal contract
 
