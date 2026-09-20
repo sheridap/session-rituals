@@ -1,0 +1,16 @@
+{
+  "name": "session-rituals",
+  "owner": { "name": "Patrick Sheridan" },
+  "metadata": {
+    "description": "Marketplace for the session-rituals Claude Code plugin."
+  },
+  "plugins": [
+    {
+      "name": "session-rituals",
+      "source": "./",
+      "description": "/standup, /lane-reset and /handoff — start, reset and close a Claude Code working session against durable state (journal, memory, ticket system, git).",
+      "version": "0.1.0",
+      "category": "productivity"
+    }
+  ]
+}
