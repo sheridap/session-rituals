@@ -29,7 +29,7 @@ Updates arrive with `/plugin marketplace update session-rituals`.
 - `gh` is used only when it is installed and the repo's `origin` is on github.com; otherwise PR checks report "not checked".
 - Linear MCP tools are used only with `ticket_system: linear`.
 - Claude Code auto-memory is used only if a memory index already exists; otherwise the memory steps are skipped and say so.
-- `/lane-reset` and `/handoff` **commit and push** (push defaults to asking once). `commit_branch` applies to code commits only; journal and index commits stay on the journal repo's checked-out branch. `/standup` never mutates.
+- `/lane-reset` and `/handoff` **commit and push** (push defaults to asking once). `commit_branch` applies to code commits only; journal and index commits stay on the branch that was checked out when `/handoff` began. `/standup` never mutates.
 - `/handoff` and `/lane-reset` are operator-invoked only (`disable-model-invocation`); casual phrases like "end of day" never trigger them.
 
 ## Parameters

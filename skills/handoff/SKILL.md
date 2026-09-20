@@ -31,7 +31,7 @@ Override in the `CLAUDE.md` at the root of the repo you are working in, under a 
 | `lock_check_cmd` | none | `<cmd> <repo-path>` — exits 0 when no *other* live session holds that repo, non-zero when one does. Run before any cross-lane write. |
 | `lock_claim_cmd` | none | `<cmd> <repo-path>` — claims a repo lock before an authorised cross-lane append. |
 | `lock_release_cmd` | none | `<cmd> <repo-path>` — removes only the calling session's claim on that repo, never another session's. This skill releases only locks *it* claimed in this run, never the session's own. |
-| `commit_branch` | `current` | Code commits only; journal and index commits always go on the journal repo's checked-out branch. `current` = commit on the checked-out branch. `ticket` = if on the default branch and a ticket id is in play, create `<ticket-id-lowercased>-<slug>` first; with `ticket_system: none` or no id, behaves as `current`. |
+| `commit_branch` | `current` | Code commits only; journal and index commits go on the branch checked out when the ritual began (`B0`, step 0). `current` = commit on the checked-out branch. `ticket` = if on the default branch and a ticket id is in play, create `<ticket-id-lowercased>-<slug>` first; with `ticket_system: none` or no id, behaves as `current`. |
 | `push` | `ask` | `ask` = ask once before the first push of this run, then push everything; `always` = push without asking; `never` = commit only and say the push is owed. A rejected push is reported as "arc committed, not durable" and the self-check fails. |
 | `deploy_cmd` | none | The command that deploys the production surface. **When unset, Part B step 6 performs no deploy and prints one line saying so.** The skill never composes an ssh command; if your deploy runs remotely, put the whole invocation in this value. |
 | `deploy_gap_cmd` | none | A read-only command that prints the commits merged but not yet deployed. When unset and `deploy_cmd` is set, the skill asks the operator whether anything prod-affecting merged today instead of guessing. |
@@ -44,7 +44,7 @@ Override in the `CLAUDE.md` at the root of the repo you are working in, under a 
 
 ## Conventions shared with `/standup` and `/lane-reset`
 
-- **Date.** `D` is the date the harness injected at session start, if it injects one; otherwise `date +%F` run once at the *first* ritual invocation this session and reused; a `/lane-reset` resume prompt carries it across `/clear`. A lane wrapping after midnight still writes `D`'s day. Never re-derive `D` mid-ritual.
+- **Date.** `D` is, in this order: the date named on the first line of a pasted `/lane-reset` resume prompt; else the date the harness injected at session start; else `date +%F` run once at the first ritual invocation this session. A lane wrapping after midnight still writes `D`'s day. Never re-derive `D` mid-ritual.
 - **Lane, arc.** A *lane* is one session working one repo; `lane_name` names it. Your *arc* is your lane's section in today's journal entry.
 - **Journal layout.** `<journal_dir>/D.md`; one `## <lane_name> lane` h2 per repo, h3 sections under it (see step 4). A repo that journals in its own tree leaves a one-line stub in the shared journal: `## <lane_name> lane — journaled in <repo>/journal/D.md (<sha>)`. The stub is an h2 so the census counts it.
 - **Index line.** In `journal_index`, under a `### Recent entries` heading (create it if absent), newest first: `- **D** — <one bold-free sentence naming every lane's headline>`. To amend, find the line whose prefix is `- **D**` and replace it; never add a second line for `D`.
@@ -60,7 +60,7 @@ Operators often run several lanes at once, one Claude Code session per repo. Som
 | **Part A — lane-local** | commits · memories · tickets · **your journal arc, appended yourself** | per-repo, per-fact, per-ticket, per-append — safe in parallel |
 | **Part B — the closer** | journal index line · deploy · resume prompt | *one* line, *one* prod surface, *one* prompt the operator reads |
 
-**Every session runs Part A. Exactly one session additionally runs Part B.** Decide this yourself — do not ask the operator which parts to run:
+**Every session runs Part A. Exactly one session additionally runs Part B.** Decide this yourself — do not ask the operator which parts to run, except where the table itself says to:
 
 - **`lock_status_cmd` unset** → you are the only session. **A then B.**
 - **`lock_status_cmd` set** → run it. Its output contract: one line per live holder, tab-separated `<repo-path>	<ISO-8601 claim time>	<session-id>`, with the **calling session's own rows marked by a trailing `	*`** (your script decides how it identifies sessions — pid, tty, an env var — the skill only reads the mark). Then:
@@ -68,9 +68,9 @@ Operators often run several lanes at once, one Claude Code session per repo. Som
 | what it shows | run |
 |---|---|
 | **no rows without `*`** | **A then B.** A solo day needs no ceremony — close it and report the day done. |
-| **other rows exist, and one claimed earlier than your earliest `*` row** | **A only.** Report which lanes are still live and that a closer is still owed. |
-| **other rows exist, and your `*` row is the earliest** | **A then B.** You are the closer; do not wait. Before step 6, name the lanes still live — anything they merge after your deploy is theirs to deploy (step 4's late-arrival clause). |
-| **other rows exist, and none is marked `*`** | **A only.** Your tooling never claimed this session's lock, so you cannot be placed. Report the live lanes and ask the operator whether you are the closer. |
+| **other rows exist, and one claimed earlier than your earliest `*` row** | **A only.** Report which lanes are still live and that a closer is still owed. If `journal_index` is unset, also run step 6 for your own prod-affecting merges (nobody else can tell the day is open). |
+| **other rows exist, and your `*` row is the earliest** (ties broken by session id, ascending) | **A then B.** You are the closer; do not wait. Before step 6, name the lanes still live — anything they merge after your deploy is theirs to deploy (step 4's late-arrival clause). |
+| **other rows exist, and none is marked `*`** | **A only.** Your tooling never claimed this session's lock, so you cannot be placed. Report the live lanes and ask the operator whether you are the closer. If `journal_index` is unset, also run step 6 for your own prod-affecting merges. |
 
 Claiming the session's *own* lock is your tooling's job (a `SessionStart` hook, or the operator), never this skill's.
 
@@ -88,7 +88,7 @@ done
 ```
 
 - **This repo keeps a *live* journal** (its own `journal/` with an entry in the last few weeks) → `AD` = this repo's `journal/`. No contention.
-- **It does not, or its tree is months stale** → if `journal_dir` is an absolute shared path, `AD` = `JD`. If `journal_dir` is the default there is no shared journal: `AD` = this repo's `journal/` anyway, and say it was dormant. A dormant tree is a trap only when a live shared journal exists — then writing into the dormant one makes your arc invisible.
+- **It does not, or its tree is months stale** → `AD` = `JD`, whether `journal_dir` is absolute (a shared journal) or relative (this repo's own, default or not). When `JD` is itself the dormant tree, write there anyway and say it was dormant. A dormant tree is a trap only when a live shared journal exists elsewhere — then writing into the dormant one makes your arc invisible.
 
 **Who closes Part B:** the operator names the closer at EOD. Absent a call: **the earliest claim time among all live rows closes** — chosen for determinism, not seniority. **If you are that lane, you are the closer. Do not wait for anyone.** A lane finishing after you appends its own arc, amends the index line, and deploys its own work (step 4's late-arrival clause).
 
@@ -102,9 +102,11 @@ The three failures this structure prevents, each seen in practice: two lanes ove
 
 # Part A — lane-local (every session runs this)
 
-**Reconstruct the day from durable sources, not from what this transcript remembers.** If `/lane-reset` ran earlier today, this context knows only its *last* resume prompt; repos from earlier resets are gone. So before step 0: list the current repo plus any repo the last prompt names, plus your own `*` rows from `lock_status_cmd` if set; then ask the operator which other repos this session touched today. In each, gather `git log --since="$D 00:00" --oneline` (add `--author` only if the repo is shared with other committers); tickets updated today if `ticket_system` is set; any arc already appended to today's journal. That list, not memory, is what steps 0–4 describe.
+**Reconstruct the day from durable sources, not from what this transcript remembers.** If `/lane-reset` ran earlier today, this context knows only its *last* resume prompt; repos from earlier resets are gone. So before step 0: list the current repo plus any repo the last prompt names, plus your own `*` rows from `lock_status_cmd` if set; then, if a `/lane-reset` prompt was pasted this session, ask the operator which other repos this session touched today. In each, gather `git log --since="$D 00:00" --oneline` (add `--author` only if the repo is shared with other committers); tickets updated today if `ticket_system` is set; any arc already appended to today's journal. That list, not memory, is what steps 0–4 describe.
 
 ### 0. Scope — the repos *this lane* touched
+Record the branch checked out now: `B0=$(git branch --show-current)`. Journal and index commits go on `B0` (or, for a shared journal, on that repo's checked-out branch), never on a ticket branch step 1 may create.
+
 List the repos this session actually worked in — the current repo plus any the reconstruction above names. Check them, and **only** them:
 
 ```bash
@@ -122,7 +124,7 @@ For each dirty/ahead repo:
 - Review the diff before committing — never commit unreviewed. If your project has a pre-commit review step (a reviewer agent, a checklist), run it on code diffs here.
 - **Stage explicit paths only — never `git add -A`/`.` or `git commit -a`.** The working tree may hold a concurrent session's uncommitted edits; blanket staging sweeps them into your commit under the wrong message. Confirm every staged path is something *this* session changed.
 - One commit, one repo — never mix repos in a single commit or branch.
-- Commit per `commit_branch` (code commits only; journal and index commits always go on the journal repo's checked-out branch); push per `push`.
+- Commit per `commit_branch` (code commits only); push per `push`. If step 1 created a ticket branch in the journal's repo, `git checkout "$B0"` after pushing it, so the arc lands on `B0`.
 - End state: `git status --short` shows nothing, or only untracked paths you name as deliberately left. Nothing else uncommitted.
 
 ### 2. Memories — capture learnings
@@ -157,14 +159,14 @@ ARC
 
 Lanes sharing one checkout serialise on commits; what you may actually hit:
 - **`fatal: Unable to create '.git/index.lock': File exists`** — another lane is mid-commit. Wait a moment and retry; it is contention, not corruption.
-- **Your commit carrying another lane's section.** Fine — both belong on the default branch; say so in the message.
+- **Your commit carrying another lane's section.** Fine — both belong on the same branch; say so in the message.
 - **`git status` clean and your text already committed** — the other lane's `git add` swept it in. Confirm with `git -C "$JR" log -p -1 -- "$J"` before concluding anything was lost, then push.
 
 *(Only if two checkouts are in play — a worktree, another machine — can a push be rejected. Then `git -C "$JR" pull --rebase`, resolve by **keeping both sections**, `git add "$J"`, `GIT_EDITOR=true git rebase --continue`, push. `GIT_EDITOR=true` matters: a bare `rebase --continue` opens an editor and hangs a session with no tty. **Never `--ours`, `--theirs`, or `push --force`** — each resolves the conflict by deleting a lane's record.)*
 
 Once pushed (or committed with the push named as owed), your arc is durable and **your lane is done** — you do not wait for the closer.
 
-**If the day may already be closed** (an index line for `D` exists — or `journal_index` is unset and you cannot tell), you inherit Part B for your own work: append as above, amend the index line for `D` — amend, never add a second — and run step 6 yourself if anything you landed is prod-affecting and `deploy_cmd` is set.
+**If the day is already closed** (an index line for `D` exists), you inherit Part B for your own work: append as above, amend the index line for `D` — amend, never add a second — and run step 6 yourself if anything you landed is prod-affecting and `deploy_cmd` is set. **If `journal_index` is unset** nobody can tell whether the day is closed: skip the index and run step 6 for your own prod-affecting merges, if `deploy_cmd` is set — the closer table's "A only" rows say the same.
 
 Structure — h2 for the lane, h3 for its sections, **always**, even on a one-lane day, so a day that gains a second lane later stays well-formed:
 
@@ -188,7 +190,7 @@ If your record lives in this repo's own journal and a shared journal exists, app
 - [ ] This lane's repos: pushed (or `push: never` and the owed push named)
 - [ ] Memories written + index updated, or "no index" stated
 - [ ] Tickets updated; follow-ups proposed and, once confirmed, filed (or `ticket_system: none`)
-- [ ] Arc **appended, committed and pushed** — in this repo's live journal, or the shared journal; stub left if the former
+- [ ] Arc **appended, committed and pushed** (or `push: never` and the owed push named) — in this repo's live journal, or the shared journal; stub left if the former
 - [ ] Any lock this run claimed has been released
 
 ---

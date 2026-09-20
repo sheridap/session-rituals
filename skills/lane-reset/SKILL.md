@@ -25,7 +25,7 @@ Override in the `CLAUDE.md` at the root of the repo you are working in, under a 
 
 ## Conventions shared with `/standup` and `/handoff`
 
-- **Resume prompt.** Under ~1,500 tokens. A pointer, not a summary. Contains: the next ticket id + one line on the goal; the repo and branch; any *non-obvious* state the next context cannot re-derive from git + tickets; the concrete first action; and, if the harness injects no date, the session date `D` on the first line so it survives `/clear`. **No line prefixes** — a fenced code block or plain paragraphs, never `>` or pipes, so copy-paste is clean. `/handoff` emits the same shape for the whole day.
+- **Resume prompt.** Under ~1,500 tokens. A pointer, not a summary. Contains: the next ticket id + one line on the goal; the repo and branch; any *non-obvious* state the next context cannot re-derive from git + tickets; the concrete first action; and the session date `D` on the first line, always, so the after-midnight rule survives `/clear` (a pasted prompt's `D` beats the injected date). **No line prefixes** — a fenced code block or plain paragraphs, never `>` or pipes, so copy-paste is clean. `/handoff` emits the same shape for the whole day.
 
 ## Why (read this before "optimizing" it away)
 

@@ -34,7 +34,7 @@ Every environment-specific value this skill uses, with its default. **Do not edi
 
 ## Conventions shared with `/handoff` and `/lane-reset`
 
-- **Date.** `D` is the date the harness injected at session start, if it injects one; otherwise `date +%F` run once at first invocation this session and reused; a `/lane-reset` resume prompt carries it across `/clear`. Never re-derive `D` mid-ritual.
+- **Date.** `D` is, in this order: the date named on the first line of a pasted `/lane-reset` resume prompt; else the date the harness injected at session start; else `date +%F` run once at the first ritual invocation this session. A lane wrapping after midnight still writes `D`'s day. Never re-derive `D` mid-ritual.
 - **Lane, arc.** A *lane* is one session working one repo; `lane_name` names it. A lane's *arc* is its section in a day's journal entry.
 - **Journal layout.** `<journal_dir>/D.md`, one `## <lane_name> lane` h2 per repo that worked that day, h3 sections `Shipped` / `Decisions` / `Learnings` / `Deferred` / `Next` under it. A repo that journals in its own tree leaves a one-line stub in the shared journal: `## <lane_name> lane — journaled in <repo>/journal/D.md (<sha>)`.
 - **Memory layout.** `<memory_dir>/MEMORY.md` is the index, one line per fact; each fact is its own file with frontmatter `name`, `description`, `type` (`feedback` / `reference` / `project`). If no index exists at the resolved directory, memory steps are skipped and say so; the skills never create one.
